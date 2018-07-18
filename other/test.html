@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- permissions for cordova-->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; img-src 'self' data: gap: * 'unsafe-eval'; style-src 'self' 'unsafe-inline'; script-src 'self' https://somedomain.com/ 'unsafe-inline' 'unsafe-eval';  media-src *">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+    <link rel="stylesheet" type="text/css" href="css/index.css">
+    <title>Mobile Forester</title>
+    <link rel="stylesheet" href="css/ol.css" type="text/css">
+    <script src="js/polyfill.min.js"></script>
+    <script src="js/ol.js"></script>
+    <script src="js/FileSaver.min.js"></script>
+    <script src="js/jquery-1.11.2.min.js"></script>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <script src="js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="css/ol3-4.css" type="text/css">
+    <script src="js/ol3-4.js"></script>
+  </head>
+  <body>
+    <script type="text/javascript" src="cordova.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+       </div>
+    <div id="map" class="map"></div>
+    <a id="export-png" class="btn btn-default"><i class="fa fa-download"></i> Download Map PNG</a>
+    <div id="info" style="display: none;"></div>
+    <form class="form-inline">
+      <!-- draw features -->
+      <label>Geometry type &nbsp;</label>
+      <select id="type">
+        <option value="None">None</option>
+        <option value="Point">Point</option>
+        <option value="LineString">Line</option>
+        <option value="Polygon">Polygon</option>
+        <option value="Circle">Circle</option>
+      </select>
+    </form>
+    <label for="track">
+      track position
+      <input id="track" type="checkbox"/>
+    </label>
+    <p>
+      position accuracy : <code id="accuracy"></code>&nbsp;&nbsp;
+      altitude : <code id="altitude"></code>&nbsp;&nbsp;
+      altitude accuracy : <code id="altitudeAccuracy"></code>&nbsp;&nbsp;
+      heading : <code id="heading"></code>&nbsp;&nbsp;
+      speed : <code id="speed"></code>
+    </p>
+    <script>
+      var view = new ol.View({
+        center: [0, 0],
+        extent: ol.proj.get('EPSG:3857').getExtent(),
+        zoom: 2
+      });
+
+      var raster = new ol.layer.Tile({
+        source: new ol.source.OSM()
+      });
+
+      var source = new ol.source.Vector({wrapX: false});
+
+      var vector = new ol.layer.Vector({
+        source: source
+      });
+
+      var map = new ol.Map({
+        layers: [raster, vector],
+        target: 'map',
+        controls: ol.control.defaults({
+          attributionOptions: {
+            collapsible: false
+          }
+        }),
+        interactions: ol.interaction.defaults({pinchZoom: false}).extend([
+          new ol.interaction.PinchZoom({
+            constrainResolution: true // force zooming to a integer zoom
+          })
+        ]),
+        view: view
+      });
+
+      // this uses FileSaver.js to export the map
+      document.getElementById('export-png').addEventListener('click', function() {
+        map.once('postcompose', function(event) {
+          var canvas = event.context.canvas;
+          if (navigator.msSaveBlob) {
+            navigator.msSaveBlob(canvas.msToBlob(), 'map.png');
+          } else {
+            canvas.toBlob(function(blob) {
+              saveAs(blob, 'map.png');
+            });
+          }
+        });
+        map.renderSync();
+      });
+
+      // Create grids
+      var graticule = new ol.Graticule({
+        // the style to use for the lines
+        strokeStyle: new ol.style.Stroke({
+          color: 'rgba(255,120,0,0.9)',
+          width: 2,
+          lineDash: [0.5, 4]
+        }),
+        showLabels: true
+      });
+
+      graticule.setMap(map);
+
+      var typeSelect = document.getElementById('type');
+
+      var featureOverlay = new ol.FeatureOverlay({
+        style: new ol.style.Style({
+          fill: new ol.style.Fill({
+            color: 'rgba(255, 255, 255, 0.2)'
+          }),
+          stroke: new ol.style.Stroke({
+            color: '#ffcc33',
+            width: 2
+          }),
+          image: new ol.style.Circle({
+            radius: 7,
+            fill: new ol.style.Fill({
+              color: '#ffcc33'
+            })
+          })
+        })
+      });
+      featureOverlay.setMap(map);
+
+      var modify = new ol.interaction.Modify({
+        features: featureOverlay.getFeatures(),
+        // the SHIFT key must be pressed to delete vertices, so
+        // that new vertices can be drawn at the same position
+        // of existing vertices
+        deleteCondition: function(event) {
+          return ol.events.condition.shiftKeyOnly(event) &&
+              ol.events.condition.singleClick(event);
+        }
+      });
+      map.addInteraction(modify);
+
+      var draw; // global so we can remove it later
+      function addInteraction() {
+        draw = new ol.interaction.Draw({
+          features: featureOverlay.getFeatures(),
+          type: /** @type {ol.geom.GeometryType} */ (typeSelect.value)
+        });
+        map.addInteraction(draw);
+      }
+
+      var typeSelect = document.getElementById('type');
+
+
+      /**
+       * Let user change the geometry type.
+       * @param {Event} e Change event.
+       */
+      typeSelect.onchange = function(e) {
+        map.removeInteraction(draw);
+        addInteraction();
+      };
+
+      addInteraction();
+
+
+      var geolocation = new ol.Geolocation({
+        projection: view.getProjection()
+      });
+
+      function el(id) {
+        return document.getElementById(id);
+      }
+
+      el('track').addEventListener('change', function() {
+        geolocation.setTracking(this.checked);
+      });
+
+      // update the HTML page when the position changes.
+      geolocation.on('change', function() {
+        el('accuracy').innerText = geolocation.getAccuracy() + ' [m]';
+        el('altitude').innerText = geolocation.getAltitude() + ' [m]';
+        el('altitudeAccuracy').innerText = geolocation.getAltitudeAccuracy() + ' [m]';
+        el('heading').innerText = geolocation.getHeading() + ' [rad]';
+        el('speed').innerText = geolocation.getSpeed() + ' [m/s]';
+      });
+
+      // handle geolocation error.
+      geolocation.on('error', function(error) {
+        var info = document.getElementById('info');
+        info.innerHTML = error.message;
+        info.style.display = '';
+      });
+
+      var accuracyFeature = new ol.Feature();
+      geolocation.on('change:accuracyGeometry', function() {
+        accuracyFeature.setGeometry(geolocation.getAccuracyGeometry());
+      });
+
+      var positionFeature = new ol.Feature();
+      positionFeature.setStyle(new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 6,
+          fill: new ol.style.Fill({
+            color: '#3399CC'
+          }),
+          stroke: new ol.style.Stroke({
+            color: '#fff',
+            width: 2
+          })
+        })
+      }));
+
+      geolocation.on('change:position', function() {
+        var coordinates = geolocation.getPosition();
+        positionFeature.setGeometry(coordinates ?
+          new ol.geom.Point(coordinates) : null);
+      });
+
+      new ol.layer.Vector({
+        map: map,
+        source: new ol.source.Vector({
+          features: [accuracyFeature, positionFeature]
+        })
+      });
+    </script>
+  </body>
+</html>
