@@ -1,49 +1,27 @@
 <!DOCTYPE html>
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
--->
+  <!--This code is to develop a web based application to assist Foresters in the 
+      collection of field data collection. This html code will be passed through
+      Apache's Cordova software to turn it into a mobile application that can be
+      used on various devices but will focus on such devices that run using 
+      Android. -->
 <html>
+
   <head>
-    <!--
-    Customize this policy to fit your own app's needs. For more guidance, see:
-        https://github.com/apache/cordova-plugin-whitelist/blob/master/README.md#content-security-policy
-    Some notes:
-        * gap: is required only on iOS (when using UIWebView) and is needed for JS->native communication
-        * https://ssl.gstatic.com is required only on Android and is needed for TalkBack to function properly
-        * Disables use of inline scripts in order to mitigate risk of XSS vulnerabilities. To change this:
-            * Enable inline JS: add 'unsafe-inline' to default-src
-    -->
-    <!--<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;"> -->
+    <!-- permissions for Cordova -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; img-src 'self' data: gap: * 'unsafe-eval'; style-src 'self' 'unsafe-inline'; script-src 'self' https://somedomain.com/ 'unsafe-inline' 'unsafe-eval';  media-src *">
     <meta name="format-detection" content="telephone=no">
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
     <link rel="stylesheet" type="text/css" href="css/index.css">
-    <title>MobileForester</title>
+    <title>Mobile Forester</title>
+    <!-- various JS libraries-->
     <link rel="stylesheet" href="css/ol.css" type="text/css">
-    <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
-    <!--script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>-->
     <script src="js/polyfill.min.js"></script>
     <script src="js/ol.js"></script>
     <script src="js/FileSaver.min.js"></script>
   </head>
-  <body>
 
+  <body>
     <script type="text/javascript" src="cordova.js"></script>
     <script type="text/javascript" src="js/index.js"></script>
        </div>
@@ -51,17 +29,21 @@
     <a id="export-png" class="btn btn-default"><i class="fa fa-download"></i> Download Map PNG</a>
     <div id="info" style="display: none;"></div>
     <form class="form-inline">
-      <label>Geometry type &nbsp;</label>
+      <!-- button for drawing features -->
+      <label>
+        Geometry type &nbsp;
+      </label>
       <select id="type">
         <option value="Point">Point</option>
-        <option value="LineString">LineString</option>
+        <option value="LineString">Line</option>
         <option value="Polygon">Polygon</option>
         <option value="Circle">Circle</option>
         <option value="None">None</option>
       </select>
     </form>
-    <label for="track">
-      track position
+    <!-- check box to turn on GPS -->
+    <label for="track"> 
+      Track Position 
       <input id="track" type="checkbox"/>
     </label>
     <p>
@@ -96,6 +78,7 @@
             collapsible: false
           }
         }),
+        //pinch zoom feature
         interactions: ol.interaction.defaults({pinchZoom: false}).extend([
           new ol.interaction.PinchZoom({
             constrainResolution: true // force zooming to a integer zoom
@@ -104,7 +87,7 @@
         view: view
       });
 
-      // this example uses FileSaver.js for which we don't have an externs file.
+      //export map using FileSaver.js, result is a PNG
       document.getElementById('export-png').addEventListener('click', function() {
         map.once('postcompose', function(event) {
           var canvas = event.context.canvas;
@@ -119,9 +102,9 @@
         map.renderSync();
       });
 
-      // Create the graticule component
+      //Creates map grids
       var graticule = new ol.Graticule({
-        // the style to use for the lines, optional.
+        // the style to use for the lines
         strokeStyle: new ol.style.Stroke({
           color: 'rgba(255,120,0,0.9)',
           width: 2,
@@ -146,9 +129,7 @@
         }
       }
 
-      /**
-       * Handle change event.
-       */
+      //Handles change event
       typeSelect.onchange = function() {
         map.removeInteraction(draw);
         addInteraction();
